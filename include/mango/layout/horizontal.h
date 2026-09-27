@@ -16,6 +16,9 @@ bool center_tile_predict(Monitor *m, Client *c, struct wlr_box *out);
 void deck(Monitor *m);
 bool deck_predict(Monitor *m, Client *c, struct wlr_box *out);
 
+void right_deck(Monitor *m);
+bool right_deck_predict(Monitor *m, Client *c, struct wlr_box *out);
+
 void monocle(Monitor *m);
 bool monocle_predict(Monitor *m, Client *c, struct wlr_box *out);
 

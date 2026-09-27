@@ -15,6 +15,7 @@ mangowm supports a variety of layouts that can be assigned per tag.
 - `center_tile`
 - `vertical_tile`
 - `right_tile`
+- `right_deck`
 - `vertical_scroller`
 - `vertical_grid`
 - `vertical_deck`
