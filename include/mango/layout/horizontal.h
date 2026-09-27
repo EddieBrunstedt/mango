@@ -11,6 +11,8 @@ void center_tile(Monitor *m);
 
 void deck(Monitor *m);
 
+void right_deck(Monitor *m);
+
 void monocle(Monitor *m);
 
 void grid(Monitor *m);

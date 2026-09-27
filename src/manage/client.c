@@ -1268,7 +1268,7 @@ bool client_is_in_same_stack(Client *sc, Client *tc, Client *fc) {
 	}
 
 	if (id == TILE || id == VERTICAL_TILE || id == DECK ||
-		id == VERTICAL_DECK || id == RIGHT_TILE) {
+		id == VERTICAL_DECK || id == RIGHT_TILE || id == RIGHT_DECK) {
 		if (tc->ismaster ^ sc->ismaster)
 			return false;
 		if (fc && !(fc->ismaster ^ sc->ismaster))
