@@ -1358,7 +1358,7 @@ void pointer_place_drag_tile(Client *c) {
 			return;
 		}
 
-		if (layout->id == RIGHT_TILE) {
+		if (layout->id == RIGHT_TILE || layout->id == RIGHT_DECK) {
 			if (closest->drop_direction == LEFT) {
 				wl_list_safe_reinsert_next(&closest->link, &c->link);
 			} else if (closest->drop_direction == RIGHT) {

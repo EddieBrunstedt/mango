@@ -598,6 +598,78 @@ void deck(Monitor *m) {
 	}
 }
 
+void right_deck(Monitor *m) {
+	int32_t mw, my;
+	int32_t i, n = 0;
+	Client *c = NULL;
+	Client *fc = NULL;
+	float mfact;
+	uint32_t nmasters = m->pertag->nmasters[get_mon_curtag(m)];
+
+	int32_t cur_gappih = server.enable_gaps ? m->gappih : 0;
+	int32_t cur_gappoh = server.enable_gaps ? m->gappoh : 0;
+	int32_t cur_gappov = server.enable_gaps ? m->gappov : 0;
+
+	cur_gappih = config.smartgaps && m->visible_fake_tiling_clients == 1
+					 ? 0
+					 : cur_gappih;
+	cur_gappoh = config.smartgaps && m->visible_fake_tiling_clients == 1
+					 ? 0
+					 : cur_gappoh;
+	cur_gappov = config.smartgaps && m->visible_fake_tiling_clients == 1
+					 ? 0
+					 : cur_gappov;
+
+	n = m->visible_fake_tiling_clients;
+
+	if (n == 0)
+		return;
+
+	wl_list_for_each(fc, &server.clients, link) {
+		if (VISIBLEON(fc, m) && ISFAKETILED(fc))
+			break;
+	}
+
+	mfact = fc->master_mfact_per > 0.0f ? fc->master_mfact_per
+										: m->pertag->mfacts[get_mon_curtag(m)];
+
+	if (n > nmasters)
+		mw = nmasters ? round((m->w.width - 2 * cur_gappoh) * mfact) : 0;
+	else
+		mw = m->w.width - 2 * cur_gappoh;
+
+	i = my = 0;
+	wl_list_for_each(c, &server.clients, link) {
+		if (!VISIBLEON(c, m) || !ISFAKETILED(c))
+			continue;
+		if (i < nmasters) {
+			c->master_mfact_per = mfact;
+			int32_t h = (m->w.height - 2 * cur_gappov - my) /
+						(MANGO_MIN(n, nmasters) - i);
+			client_tile_resize(
+				c,
+				(struct wlr_box){.x = m->w.x + m->w.width - mw - cur_gappoh,
+								 .y = m->w.y + cur_gappov + my,
+								 .width = mw,
+								 .height = h},
+				0);
+			my += h;
+		} else {
+			// Stack area clients
+			c->master_mfact_per = mfact;
+			client_tile_resize(
+				c,
+				(struct wlr_box){.x = m->w.x + cur_gappoh,
+								 .y = m->w.y + cur_gappov,
+								 .width = m->w.width - mw - 2 * cur_gappoh -
+										  cur_gappih,
+								 .height = m->w.height - 2 * cur_gappov},
+				0);
+		}
+		i++;
+	}
+}
+
 void monocle(Monitor *m) {
 	Client *c = NULL;
 	struct wlr_box geom;

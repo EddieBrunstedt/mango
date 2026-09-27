@@ -109,7 +109,8 @@ bool is_horizontal_stack_layout(Monitor *m) {
 
 bool is_horizontal_right_stack_layout(Monitor *m) {
 	uint32_t tag = get_mon_curtag(m);
-	return m->pertag->ltidxs[tag]->id == RIGHT_TILE;
+	return m->pertag->ltidxs[tag]->id == RIGHT_TILE ||
+		   m->pertag->ltidxs[tag]->id == RIGHT_DECK;
 }
 
 int32_t is_special_animation_rule(Client *c) {
@@ -860,7 +861,8 @@ void client_set_drop_area(Client *c) {
 			}
 		}
 	} else if (cur_layout->id == TILE || cur_layout->id == DECK ||
-			   cur_layout->id == CENTER_TILE || cur_layout->id == RIGHT_TILE) {
+			   cur_layout->id == CENTER_TILE || cur_layout->id == RIGHT_TILE ||
+			   cur_layout->id == RIGHT_DECK) {
 		if (c->ismaster) {
 			if (c->mon->visible_tiling_clients == 1) {
 				if (rel_x < client_width * 0.5) {

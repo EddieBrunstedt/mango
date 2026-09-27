@@ -184,7 +184,7 @@ void resize_tile_master_horizontal(Client *gc, bool isdrag, int32_t offsetx,
 			delta_x = delta_x * -1.0f;
 		if (gc->ismaster && type == CENTER_TILE)
 			delta_x = delta_x * 2;
-		if (type == RIGHT_TILE)
+		if (type == RIGHT_TILE || type == RIGHT_DECK)
 			delta_x = delta_x * -1.0f;
 
 		float new_master_mfact_per = gc->old_master_mfact_per + delta_x;
@@ -1010,7 +1010,8 @@ void resize_tile_client(Client *gc, bool isdrag, int32_t offsetx,
 	const Layout *current_layout =
 		gc->mon->pertag->ltidxs[get_client_tag_idx(gc)];
 	if (current_layout->id == TILE || current_layout->id == DECK ||
-		current_layout->id == CENTER_TILE || current_layout->id == RIGHT_TILE
+		current_layout->id == CENTER_TILE || current_layout->id == RIGHT_TILE ||
+		current_layout->id == RIGHT_DECK
 
 	) {
 		resize_tile_master_horizontal(gc, isdrag, offsetx, offsety, time,
@@ -1401,6 +1402,7 @@ Layout layouts[] = {
 	{"K", deck, "deck", DECK},						 // Card layout
 	{"CT", center_tile, "center_tile", CENTER_TILE}, // Centered layout
 	{"RT", right_tile, "right_tile", RIGHT_TILE},	 // Right layout
+	{"RK", right_deck, "right_deck", RIGHT_DECK},	 // Right card layout
 	{"VS", vertical_scroller, "vertical_scroller",
 	 VERTICAL_SCROLLER}, // Vertical scroll layout
 	{"VT", vertical_tile, "vertical_tile",
