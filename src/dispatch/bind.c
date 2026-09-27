@@ -2233,6 +2233,8 @@ int32_t zoom(const Arg *arg) {
 
 	client_focus(sel, 1);
 	arrange(server.selected_monitor, false, false);
+	if (config.warpcursor)
+		pointer_warp_to_client(sel);
 	return 0;
 }
 
