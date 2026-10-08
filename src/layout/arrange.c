@@ -23,13 +23,9 @@ void set_size_per(Monitor *m, Client *c) {
 		return;
 
 	uint32_t tag = get_mon_curtag(m);
-	const Layout *current_layout = m->pertag->ltidxs[tag];
 
 	wl_list_for_each(fc, &server.clients, link) {
 		if (VISIBLEON(fc, m) && ISTILED(fc) && fc != c) {
-			if (current_layout->id == CENTER_TILE &&
-				(fc->isleftstack ^ c->isleftstack))
-				continue;
 			c->master_mfact_per = fc->master_mfact_per;
 			c->master_inner_per = fc->master_inner_per;
 			c->stack_inner_per = fc->stack_inner_per;
@@ -120,6 +116,26 @@ void resize_tile_master_horizontal(Client *gc, bool isdrag, int32_t offsetx,
 			gc->cursor_in_left_half = false;
 		}
 
+		/* center_tile resizes a stack window within its side. Work in shares
+		 * of the side and scale back to shares of the whole stack at the
+		 * end, so the other side keeps its total. */
+		float side_total = 1.0f;
+		int32_t side_num = 0;
+		if (type == CENTER_TILE && !gc->ismaster) {
+			side_total = 0.0f;
+			wl_list_for_each(tc, &server.clients, link) {
+				if (VISIBLEON(tc, gc->mon) && ISTILED(tc) && !tc->ismaster &&
+					tc->isleftstack == gc->isleftstack) {
+					side_total += tc->stack_inner_per;
+					side_num++;
+				}
+			}
+			if (side_total <= 0.0f)
+				side_total = 1.0f;
+		}
+		float old_stack_inner_per = gc->old_stack_inner_per / side_total;
+		float cur_stack_inner_per = gc->stack_inner_per / side_total;
+
 		if (gc->ismaster) {
 			delta_x = (float)(offsetx) * (gc->old_master_mfact_per) /
 					  gc->drag_begin_geom.width;
@@ -128,7 +144,7 @@ void resize_tile_master_horizontal(Client *gc, bool isdrag, int32_t offsetx,
 		} else {
 			delta_x = (float)(offsetx) * (1 - gc->old_master_mfact_per) /
 					  gc->drag_begin_geom.width;
-			delta_y = (float)(offsety) * (gc->old_stack_inner_per) /
+			delta_y = (float)(offsety) * (old_stack_inner_per) /
 					  gc->drag_begin_geom.height;
 		}
 
@@ -190,11 +206,14 @@ void resize_tile_master_horizontal(Client *gc, bool isdrag, int32_t offsetx,
 
 		float new_master_mfact_per = gc->old_master_mfact_per + delta_x;
 		float new_master_inner_per = gc->old_master_inner_per + delta_y;
-		float new_stack_inner_per = gc->old_stack_inner_per + delta_y;
+		float new_stack_inner_per = old_stack_inner_per + delta_y;
 
 		new_master_mfact_per = fmaxf(0.1f, fminf(0.9f, new_master_mfact_per));
 		new_master_inner_per = fmaxf(0.1f, fminf(0.9f, new_master_inner_per));
 		new_stack_inner_per = fmaxf(0.1f, fminf(0.9f, new_stack_inner_per));
+		/* A window alone on its side always fills it. */
+		if (type == CENTER_TILE && !gc->ismaster && side_num == 1)
+			new_stack_inner_per = cur_stack_inner_per;
 
 		// Scales other windows in the same group in real time, keeping the
 		// group sum at 1; otherwise the added ratio is not the ratio after
@@ -218,7 +237,7 @@ void resize_tile_master_horizontal(Client *gc, bool isdrag, int32_t offsetx,
 				if (type == CENTER_TILE) {
 					/* Scales only the stack_inner_per of same-side stack
 					 * windows. */
-					float cur_other_sum = 1.0f - gc->stack_inner_per;
+					float cur_other_sum = 1.0f - cur_stack_inner_per;
 					float new_other_sum = 1.0f - new_stack_inner_per;
 					if (cur_other_sum > 0.001f) {
 						float scale = new_other_sum / cur_other_sum;
@@ -251,11 +270,11 @@ void resize_tile_master_horizontal(Client *gc, bool isdrag, int32_t offsetx,
 					continue;
 				if (tc != gc) {
 					if (!tc->ismaster && new_stack_inner_per != 1.0f &&
-						gc->old_stack_inner_per != 1.0f &&
+						old_stack_inner_per != 1.0f &&
 						(type != CENTER_TILE ||
 						 !(gc->isleftstack ^ tc->isleftstack)))
 						tc->stack_inner_per = (1 - new_stack_inner_per) /
-											  (1 - gc->old_stack_inner_per) *
+											  (1 - old_stack_inner_per) *
 											  tc->stack_inner_per;
 					if (tc->ismaster && new_master_inner_per != 1.0f &&
 						gc->old_master_inner_per != 1.0f)
@@ -269,7 +288,7 @@ void resize_tile_master_horizontal(Client *gc, bool isdrag, int32_t offsetx,
 
 		/* Applies the new ratio to the grabbed window itself. */
 		gc->master_inner_per = new_master_inner_per;
-		gc->stack_inner_per = new_stack_inner_per;
+		gc->stack_inner_per = new_stack_inner_per * side_total;
 
 		/* Broadcasts master_mfact_per to all tiled windows. */
 		wl_list_for_each(tc, &server.clients, link) {
@@ -1052,83 +1071,36 @@ bool special_keep_bg_client(Monitor *m, Client *c) {
 			 (c->tags & (1 << (m->pertag->prevtag - 1)))) ||
 			(c->tags & (m->tagset[m->seltags ^ 1] & ~TAG0_MASK)));
 }
-void reset_size_per_mon(Monitor *m, int32_t tile_cilent_num,
-						double total_left_stack_hight_percent,
-						double total_right_stack_hight_percent,
-						double total_stack_hight_percent,
+void reset_size_per_mon(Monitor *m, double total_stack_hight_percent,
 						double total_master_inner_percent, int32_t master_num,
 						int32_t stack_num) {
 	Client *c = NULL;
 	int32_t i = 0;
-	uint32_t stack_index = 0;
 	uint32_t tag = get_mon_curtag(m);
 	uint32_t nmasters = m->pertag->nmasters[tag];
 
-	if (m->pertag->ltidxs[tag]->id != CENTER_TILE) {
+	/* stack_inner_per is a share of the whole stack in every layout, so
+	 * switching layouts keeps it. center_tile divides it by its side's total
+	 * when arranging. */
+	wl_list_for_each(c, &server.clients, link) {
+		if (VISIBLEON(c, m) && ISFAKETILED(c)) {
 
-		wl_list_for_each(c, &server.clients, link) {
-			if (VISIBLEON(c, m) && ISFAKETILED(c)) {
-
-				if (total_master_inner_percent > 0.0 && i < nmasters) {
-					c->ismaster = true;
-					c->stack_inner_per = stack_num ? 1.0f / stack_num : 1.0f;
-					c->master_inner_per =
-						c->master_inner_per / total_master_inner_percent;
-				} else {
-					c->ismaster = false;
-					c->master_inner_per =
-						master_num > 0 ? 1.0f / master_num : 1.0f;
-					c->stack_inner_per =
-						total_stack_hight_percent
-							? c->stack_inner_per / total_stack_hight_percent
-							: 1.0f;
-				}
-				i++;
-
-				check_size_per_valid(c);
+			if (total_master_inner_percent > 0.0 && i < nmasters) {
+				c->ismaster = true;
+				c->stack_inner_per = stack_num ? 1.0f / stack_num : 1.0f;
+				c->master_inner_per =
+					c->master_inner_per / total_master_inner_percent;
+			} else {
+				c->ismaster = false;
+				c->master_inner_per = master_num > 0 ? 1.0f / master_num : 1.0f;
+				c->stack_inner_per =
+					total_stack_hight_percent
+						? c->stack_inner_per / total_stack_hight_percent
+						: 1.0f;
 			}
-		}
-	} else {
-		wl_list_for_each(c, &server.clients, link) {
-			if (VISIBLEON(c, m) && ISFAKETILED(c)) {
+			i++;
 
-				if (total_master_inner_percent > 0.0 && i < nmasters) {
-					c->ismaster = true;
-					if ((stack_index % 2) ^ (tile_cilent_num % 2 == 0)) {
-						c->stack_inner_per =
-							stack_num > 1 ? 1.0f / ((stack_num - 1) / 2.0f)
-										  : 1.0f;
-					} else {
-						c->stack_inner_per =
-							stack_num > 1 ? 2.0f / stack_num : 1.0f;
-					}
-
-					c->master_inner_per =
-						c->master_inner_per / total_master_inner_percent;
-				} else {
-					stack_index = i - nmasters;
-
-					c->ismaster = false;
-					c->master_inner_per =
-						master_num > 0 ? 1.0f / master_num : 1.0f;
-					if ((stack_index % 2) ^ (tile_cilent_num % 2 == 0)) {
-						c->stack_inner_per =
-							total_right_stack_hight_percent
-								? c->stack_inner_per /
-									  total_right_stack_hight_percent
-								: 1.0f;
-					} else {
-						c->stack_inner_per =
-							total_left_stack_hight_percent
-								? c->stack_inner_per /
-									  total_left_stack_hight_percent
-								: 1.0f;
-					}
-				}
-				i++;
-
-				check_size_per_valid(c);
-			}
+			check_size_per_valid(c);
 		}
 	}
 }
@@ -1138,8 +1110,6 @@ void pre_calculate_before_arrange(Monitor *m, bool want_animation,
 	Client *c = NULL;
 	double total_stack_inner_percent = 0;
 	double total_master_inner_percent = 0;
-	double total_right_stack_hight_percent = 0;
-	double total_left_stack_hight_percent = 0;
 	int32_t i = 0;
 	int32_t nmasters = 0;
 	int32_t stack_index = 0;
@@ -1224,16 +1194,9 @@ void pre_calculate_before_arrange(Monitor *m, bool want_animation,
 						stack_num++;
 						total_stack_inner_percent += c->stack_inner_per;
 						stack_index = i - nmasters;
-						if ((stack_index % 2) ^
-							(m->visible_tiling_clients % 2 == 0)) {
-							c->isleftstack = false;
-							total_right_stack_hight_percent +=
-								c->stack_inner_per;
-						} else {
-							c->isleftstack = true;
-							total_left_stack_hight_percent +=
-								c->stack_inner_per;
-						}
+						c->isleftstack =
+							!((stack_index % 2) ^
+							  (m->visible_tiling_clients % 2 == 0));
 					}
 					i++;
 				}
@@ -1261,10 +1224,8 @@ void pre_calculate_before_arrange(Monitor *m, bool want_animation,
 		}
 	}
 
-	reset_size_per_mon(
-		m, m->visible_tiling_clients, total_left_stack_hight_percent,
-		total_right_stack_hight_percent, total_stack_inner_percent,
-		total_master_inner_percent, master_num, stack_num);
+	reset_size_per_mon(m, total_stack_inner_percent, total_master_inner_percent,
+					   master_num, stack_num);
 
 	special_update_dim(m);
 }
