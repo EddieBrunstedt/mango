@@ -31,10 +31,7 @@ void check_size_per_valid(Client *c);
 these two functions will never be triggered.
 Just in case to facilitate the final investigation*/
 
-void reset_size_per_mon(Monitor *m, int32_t tile_cilent_num,
-						double total_left_stack_hight_percent,
-						double total_right_stack_hight_percent,
-						double total_stack_hight_percent,
+void reset_size_per_mon(Monitor *m, double total_stack_hight_percent,
 						double total_master_inner_percent, int32_t master_num,
 						int32_t stack_num);
 

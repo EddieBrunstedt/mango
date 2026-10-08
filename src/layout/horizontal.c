@@ -324,6 +324,23 @@ static void center_tile_core(Monitor *m, const LayoutContext *ctx) {
 		}
 	}
 
+	// stack_inner_per is a share of the whole stack; each side splits its
+	// height by its windows' shares relative to the side's total.
+	float left_stack_total = 0.0f;
+	float right_stack_total = 0.0f;
+	i = 0;
+	wl_list_for_each(c, &server.clients, link) {
+		if (!VISIBLEON(c, m) || !ISFAKETILED(c))
+			continue;
+		if (i >= nmasters) {
+			if (((i - nmasters) % 2) ^ (n % 2 == 0))
+				right_stack_total += c->stack_inner_per;
+			else
+				left_stack_total += c->stack_inner_per;
+		}
+		i++;
+	}
+
 	int32_t master_surplus_height =
 		(m->w.height - 2 * cur_gappov -
 		 cur_gappiv * ie * (master_num > 0 ? master_num - 1 : 0));
@@ -333,13 +350,15 @@ static void center_tile_core(Monitor *m, const LayoutContext *ctx) {
 	int32_t slave_left_surplus_height =
 		(m->w.height - 2 * cur_gappov -
 		 cur_gappiv * ie * (left_num > 0 ? left_num - 1 : 0));
-	float slave_left_surplus_ratio = 1.0;
+	float slave_left_surplus_ratio =
+		left_stack_total > 0.0f ? left_stack_total : 1.0f;
 	int32_t init_slave_left_surplus = slave_left_surplus_height;
 
 	int32_t slave_right_surplus_height =
 		(m->w.height - 2 * cur_gappov -
 		 cur_gappiv * ie * (right_num > 0 ? right_num - 1 : 0));
-	float slave_right_surplus_ratio = 1.0;
+	float slave_right_surplus_ratio =
+		right_stack_total > 0.0f ? right_stack_total : 1.0f;
 	int32_t init_slave_right_surplus = slave_right_surplus_height;
 
 	int32_t init_single_stack_surplus =
@@ -484,7 +503,8 @@ static void center_tile_core(Monitor *m, const LayoutContext *ctx) {
 							h = m->w.height - ety - cur_gappov;
 						c->stack_inner_per =
 							init_slave_right_surplus > 0
-								? ((float)h / (float)init_slave_right_surplus)
+								? ((float)h / (float)init_slave_right_surplus) *
+									  right_num / stack_num
 								: 0;
 						c->master_mfact_per = mfact;
 					}
@@ -518,7 +538,8 @@ static void center_tile_core(Monitor *m, const LayoutContext *ctx) {
 							h = m->w.height - oty - cur_gappov;
 						c->stack_inner_per =
 							init_slave_left_surplus > 0
-								? ((float)h / (float)init_slave_left_surplus)
+								? ((float)h / (float)init_slave_left_surplus) *
+									  left_num / stack_num
 								: 0;
 						c->master_mfact_per = mfact;
 					}
