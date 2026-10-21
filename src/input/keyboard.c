@@ -623,7 +623,10 @@ int32_t keyboard_check_keybinding(uint32_t state, bool is_locked, uint32_t mods,
 		if ((k->iscommonmode ||
 			 (k->isdefaultmode && server.key_mode.isdefault) ||
 			 (strcmp(server.key_mode.mode, k->mode) == 0)) &&
-			CLEANMASK(mods) == CLEANMASK(k->mod) &&
+			(CLEANMASK(mods) == CLEANMASK(k->mod) ||
+			 // A chord's modifier may be released before its key.
+			 (state == WL_KEYBOARD_KEY_STATE_RELEASED &&
+			  CLEANMASK(server.last_hold_mods) == CLEANMASK(k->mod))) &&
 			((k->keysymcode.type == KEY_TYPE_SYM &&
 			  xkb_keysym_to_lower(sym) ==
 				  xkb_keysym_to_lower(k->keysymcode.keysym)) ||
@@ -753,6 +756,7 @@ void handle_keyboard_key(struct wl_listener *listener, void *data) {
 	} else {
 		// Avoids normal bindings affecting a bare mode-key binding.
 		server.last_hold_keycode = keycode;
+		server.last_hold_mods = mods;
 	}
 
 	for (i = 0; i < nsyms; i++)

@@ -179,6 +179,7 @@ struct MangoServer {
 	int active_capture_count;
 	bool cli_debug_log;
 	uint32_t last_hold_keycode;
+	uint32_t last_hold_mods;
 	uint32_t tagmask; /* default 9 tags; updated with config.tag_num */
 	uint32_t next_client_id;
 
