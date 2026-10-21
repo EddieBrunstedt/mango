@@ -95,12 +95,32 @@ void set_size_per(Monitor *m, Client *c, bool reset_proportion) {
 /* Manual resize: freeze the proportions just computed into the weights. */
 static void persist_tile_size_weights(Monitor *m) {
 	Client *c = NULL;
+	double left_stack_weight = 0.0, right_stack_weight = 0.0;
+	bool centered = m->pertag->ltidxs[get_mon_curtag(m)]->id == CENTER_TILE;
+
+	/* center_tile's stack_inner_per is a share of one side. Scale it by the
+	 * side's weight so each side keeps its total and the other layouts,
+	 * which split the whole stack by weight, see the same balance. */
+	if (centered) {
+		wl_list_for_each(c, &server.clients, link) {
+			if (!VISIBLEON(c, m) || !ISFAKETILED(c) || c->ismaster)
+				continue;
+			if (c->isleftstack)
+				left_stack_weight += c->stack_size_weight;
+			else
+				right_stack_weight += c->stack_size_weight;
+		}
+	}
 
 	wl_list_for_each(c, &server.clients, link) {
 		if (!VISIBLEON(c, m) || !ISFAKETILED(c))
 			continue;
 		if (c->ismaster)
 			c->master_size_weight = c->master_inner_per;
+		else if (centered)
+			c->stack_size_weight =
+				c->stack_inner_per *
+				(c->isleftstack ? left_stack_weight : right_stack_weight);
 		else
 			c->stack_size_weight = c->stack_inner_per;
 	}
