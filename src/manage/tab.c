@@ -54,7 +54,7 @@ static void tab_leave(Client *c) {
 static bool tab_layout_id_supported(uint32_t id) {
 	if (id == MONOCLE)
 		return config.monocle_tab_mode;
-	if (id == DECK || id == VERTICAL_DECK)
+	if (id == DECK || id == VERTICAL_DECK || id == RIGHT_DECK)
 		return config.deck_tab_mode;
 	return false;
 }
@@ -81,7 +81,7 @@ static bool tab_is_stack_candidate(Monitor *m, Client *target) {
 	uint32_t id = m->pertag->ltidxs[get_mon_curtag(m)]->id;
 	if (id == MONOCLE)
 		return true;
-	if (id != DECK && id != VERTICAL_DECK)
+	if (id != DECK && id != VERTICAL_DECK && id != RIGHT_DECK)
 		return false;
 	return !target->ismaster;
 }

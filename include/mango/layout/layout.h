@@ -49,11 +49,12 @@ enum {
 	VERTICAL_GRID,
 	VERTICAL_DECK,
 	RIGHT_TILE,
+	RIGHT_DECK,
 	DWINDLE,
 	FAIR,
 	VERTICAL_FAIR,
 };
 
-extern Layout layouts[14];
+extern Layout layouts[15];
 
 #endif

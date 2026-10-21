@@ -15,6 +15,7 @@ mangowm supports a variety of layouts that can be assigned per tag.
 - `center_tile`
 - `vertical_tile`
 - `right_tile`
+- `right_deck`
 - `vertical_scroller`
 - `vertical_grid`
 - `vertical_deck`
@@ -149,7 +150,7 @@ The Deck layout keeps the master area visible and stacks the remaining windows a
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
-| `deck_tab_mode` | `1` | Auto merge stack area windows into a tab in deck layout. |
+| `deck_tab_mode` | `1` | Auto merge stack area windows into a tab in deck, vertical_deck and right_deck layouts. |
 
 ```ini
 # Example deck configuration
